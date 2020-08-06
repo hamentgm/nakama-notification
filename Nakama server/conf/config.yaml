@@ -1,0 +1,15 @@
+name: nakama-node-1
+shutdown_grace_sec: 90
+
+runtime:
+  http_key: 6EvKQeBPzQUO8LTIGIob
+  env:
+    - "env=dev"
+
+logger:
+  level: "debug"
+
+socket:
+  ping_period_ms: 5000
+  pong_wait_ms: 7000
+  outgoing_queue_size: 200
