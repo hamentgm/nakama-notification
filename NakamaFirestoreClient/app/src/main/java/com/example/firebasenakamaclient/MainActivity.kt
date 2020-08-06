@@ -40,27 +40,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun onJoinBtnClick() {
-        client = DefaultClient(
-            "defaultkey",
-            "192.168.1.148",
-            7349,
-            false
-        )
+        try {
+            client = DefaultClient(
+                "defaultkey",
+                "192.168.43.242",
+                7349,
+                false
+            )
 
-        session = client.authenticateCustom("${Calendar.getInstance().timeInMillis}").await()
+            session = client.authenticateCustom("${Calendar.getInstance().timeInMillis}").await()
 
-        socket = client.createSocket(
-            "192.168.1.148",
-            7350,
-            false
-        )
-        delay(1000)
-        pendingConnection = socket.connect(session, WebSocketListener())
-        pendingConnection?.await()
-        pendingConnection = null
+            socket = client.createSocket(
+                "192.168.43.242",
+                7350,
+                false
+            )
+            delay(1000)
+            pendingConnection = socket.connect(session, WebSocketListener())
+            pendingConnection?.await()
+            pendingConnection = null
 
-//        val ticket = socket.addMatchmaker(2, 2).await()
-//        notification
+            socket.addMatchmaker(2, 2).await()
+        } catch (e: ExceptionInInitializerError){
+            Log.e(TAG, "nakama connection failed")
+        }
     }
 
     /*
