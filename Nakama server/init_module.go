@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 
 	// NOTE: Do not remove. These are required to pin as direct dependencies with Go modules.
@@ -20,12 +21,21 @@ import (
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
+
+	_ = initializer.RegisterAfterAuthenticateCustom(AfterAuthenticateCustom)
+
 	if err := initializer.RegisterMatchmakerMatched(MatchMakerFunction); err != nil {
-		logger.Error("Unable to register: %v", err)
+		logger.Error(fmt.Sprintf("Unable to register: %v", err))
 		return err
 	}
 
 	logger.Info("SERVER STARTED")
+	return nil
+}
+
+func AfterAuthenticateCustom(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateCustomRequest) error {
+	logger.Debug(fmt.Sprintf("user authenticated %s", in.Username))
+	//sendNotification(ctx, nk, logger, "userId")
 	return nil
 }
 
@@ -56,5 +66,24 @@ func sendMatchmakerDoneNotification(ctx context.Context, nk runtime.NakamaModule
 
 	if err := nk.NotificationsSend(ctx, notifications); err != nil {
 		logger.Error("Error sending the matchmaker done notification", err)
+	}
+}
+
+// Sends notification
+func sendNotification(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, userId string) {
+	if err := nk.NotificationSend(
+		ctx,
+		userId,
+		"",
+		map[string]interface{}{
+			"ticket_id": userId,
+		},
+		200,
+		"",
+		true,
+	); err != nil {
+		logger.Error("Error sending the matchmaker done notification", err)
+	} else {
+		logger.Debug(fmt.Sprintf("Notification sent to %s", userId))
 	}
 }

@@ -7,7 +7,7 @@ import com.heroiclabs.nakama.api.NotificationList
 
 class WebSocketListener: SocketListener {
     override fun onMatchmakerMatched(p0: MatchmakerMatched?) {
-        Log.d(TAG, "")
+        Log.d(TAG, "matched ${p0?.matchId}")
     }
 
     override fun onStatusPresence(p0: StatusPresenceEvent?) {
@@ -43,7 +43,7 @@ class WebSocketListener: SocketListener {
     }
 
     override fun onNotifications(p0: NotificationList?) {
-        Log.d(TAG, "")
+        Log.d(TAG, "notification received")
     }
 
     override fun onChannelMessage(p0: ChannelMessage?) {

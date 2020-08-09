@@ -1,2 +1,3 @@
+include ':nakama-java-2.0.5-SNAPSHOT-all'
 include ':app'
 rootProject.name='FirebaseNakamaClient'

@@ -5,24 +5,19 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.firebase.firestore.FirebaseFirestore
-import com.heroiclabs.nakama.Client
 import com.heroiclabs.nakama.DefaultClient
 import com.heroiclabs.nakama.Session
 import com.heroiclabs.nakama.SocketClient
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
 import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var client: Client
-    private lateinit var session: Session
     private lateinit var socket: SocketClient
-    private var pendingConnection: ListenableFuture<Session>? = null
+    private lateinit var session: Session
+    private lateinit var client: DefaultClient
+    private val ip = "192.168.43.242"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,38 +27,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun setup() {
         btn_join.setOnClickListener {
-            GlobalScope.launch {
-                onJoinBtnClick()
-            }
+            onJoinBtnClick()
         }
         fireStoreAction()
     }
 
-    private suspend fun onJoinBtnClick() {
-        try {
-            client = DefaultClient(
-                "defaultkey",
-                "192.168.43.242",
-                7349,
-                false
-            )
+    private fun onJoinBtnClick() {
 
-            session = client.authenticateCustom("${Calendar.getInstance().timeInMillis}").await()
+        client = DefaultClient(
+            "defaultkey",
+            ip,
+            7349,
+            false
+        )
 
-            socket = client.createSocket(
-                "192.168.43.242",
-                7350,
-                false
-            )
-            delay(1000)
-            pendingConnection = socket.connect(session, WebSocketListener())
-            pendingConnection?.await()
-            pendingConnection = null
-
-            socket.addMatchmaker(2, 2).await()
-        } catch (e: ExceptionInInitializerError){
-            Log.e(TAG, "nakama connection failed")
-        }
+        session = client.authenticateCustom("${Calendar.getInstance().timeInMillis}", true).get()
+        socket = client.createSocket(
+            ip,
+            7350,
+            false
+        )
+        socket.connect(session, WebSocketListener()).get()
+        Log.d(TAG, "socket connected")
+        socket.addMatchmaker(2, 2).get()
+        Log.d(TAG, "match requested")
     }
 
     /*
@@ -118,6 +105,12 @@ class MainActivity : AppCompatActivity() {
                     Log.w(TAG, "Error getting documents.", task.exception)
                 }
             }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        socket.disconnect()
+        client.disconnect()
     }
 
     companion object {
