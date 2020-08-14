@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"time"
 
 	// NOTE: Do not remove. These are required to pin as direct dependencies with Go modules.
 	_ "cloud.google.com/go"
@@ -24,66 +25,36 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 
 	_ = initializer.RegisterAfterAuthenticateCustom(AfterAuthenticateCustom)
 
-	if err := initializer.RegisterMatchmakerMatched(MatchMakerFunction); err != nil {
-		logger.Error(fmt.Sprintf("Unable to register: %v", err))
-		return err
-	}
-
 	logger.Info("SERVER STARTED")
 	return nil
 }
 
 func AfterAuthenticateCustom(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateCustomRequest) error {
 	logger.Debug(fmt.Sprintf("user authenticated %s", in.Username))
-	//sendNotification(ctx, nk, logger, "userId")
+	var userId = ctx.Value("user_id")
+	go sendNotification(ctx, nk, logger, userId.(string))
 	return nil
-}
-
-func MatchMakerFunction(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, entries []runtime.MatchmakerEntry) (string, error) {
-	logger.Debug("Match Created")
-	sendMatchmakerDoneNotification(ctx, nk, logger, entries)
-
-	return "dummy_match_id", nil
-}
-
-// Sends matchmaking done notification
-func sendMatchmakerDoneNotification(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, entries []runtime.MatchmakerEntry) {
-	var notifications []*runtime.NotificationSend
-
-	for _, ent := range entries {
-		notifications = append(notifications, &runtime.NotificationSend{
-			UserID:  ent.GetPresence().GetUserId(),
-			Subject: "MATCH_MAKING_DONE",
-			Content: map[string]interface{}{
-				"ticket_id": ent.GetTicket(),
-			},
-			Code:       100,
-			Sender:     "",
-			Persistent: true,
-		})
-		logger.Debug(fmt.Sprintf("Notification sent to %s", ent.GetPresence().GetUserId()))
-	}
-
-	if err := nk.NotificationsSend(ctx, notifications); err != nil {
-		logger.Error("Error sending the matchmaker done notification", err)
-	}
 }
 
 // Sends notification
 func sendNotification(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, userId string) {
-	if err := nk.NotificationSend(
-		ctx,
-		userId,
-		"",
-		map[string]interface{}{
-			"ticket_id": userId,
-		},
-		200,
-		"",
-		true,
-	); err != nil {
-		logger.Error("Error sending the matchmaker done notification", err)
-	} else {
-		logger.Debug(fmt.Sprintf("Notification sent to %s", userId))
+	for i := 1; i <= 10; i++ {
+		time.Sleep(10 * time.Second)
+		logger.Debug(fmt.Sprintf("sending notification to user Id %s", userId))
+		if err := nk.NotificationSend(
+			ctx,
+			userId,
+			"subject",
+			map[string]interface{}{
+				"ticket_id": userId,
+			},
+			200,
+			"",
+			true,
+		); err != nil {
+			logger.Error("Error sending the auth done notification", err)
+		} else {
+			logger.Debug(fmt.Sprintf("Notification sent to %s", userId))
+		}
 	}
 }

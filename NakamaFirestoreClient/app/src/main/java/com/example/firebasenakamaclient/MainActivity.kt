@@ -3,11 +3,12 @@ package com.example.firebasenakamaclient
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import com.google.common.util.concurrent.ListenableFuture
+import androidx.lifecycle.MutableLiveData
 import com.google.firebase.firestore.FirebaseFirestore
-import com.heroiclabs.nakama.DefaultClient
-import com.heroiclabs.nakama.Session
-import com.heroiclabs.nakama.SocketClient
+import com.google.firebase.firestore.util.Executors
+import com.heroiclabs.nakama.*
+import com.heroiclabs.nakama.api.ChannelMessage
+import com.heroiclabs.nakama.api.NotificationList
 import kotlinx.android.synthetic.main.activity_main.*
 import java.util.*
 
@@ -18,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var session: Session
     private lateinit var client: DefaultClient
     private val ip = "192.168.43.242"
+    private val lLogs = MutableLiveData<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,13 +28,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setup() {
-        btn_join.setOnClickListener {
-            onJoinBtnClick()
+        btn_connect.setOnClickListener {
+            onConnectBtnClick()
+        }
+        btn_disconnect.setOnClickListener {
+            onDisconnectBtnClick()
         }
         fireStoreAction()
     }
 
-    private fun onJoinBtnClick() {
+    private fun onConnectBtnClick() {
 
         client = DefaultClient(
             "defaultkey",
@@ -41,16 +46,71 @@ class MainActivity : AppCompatActivity() {
             false
         )
 
-        session = client.authenticateCustom("${Calendar.getInstance().timeInMillis}", true).get()
+        client.authenticateCustom("nakama_client", true).let { future ->
+            future.addListener(
+                Runnable {
+                    session = future.get()
+                    onSessionCreated()
+                }, Executors.DIRECT_EXECUTOR
+            )
+        }
+
+        lLogs.observe(this, androidx.lifecycle.Observer {
+            tv_logs.setText(lLogs.value)
+        })
+    }
+
+    fun onSessionCreated() {
         socket = client.createSocket(
             ip,
             7350,
             false
         )
-        socket.connect(session, WebSocketListener()).get()
-        Log.d(TAG, "socket connected")
-        socket.addMatchmaker(2, 2).get()
-        Log.d(TAG, "match requested")
+
+
+        socket.connect(session, object : SocketListener {
+            override fun onMatchmakerMatched(p0: MatchmakerMatched?) {
+                appendLogs("matched matchId: ${p0?.matchId}")
+            }
+
+            override fun onStatusPresence(p0: StatusPresenceEvent?) {}
+
+            override fun onChannelPresence(p0: ChannelPresenceEvent?) {}
+
+            override fun onMatchData(p0: MatchData?) {}
+
+            override fun onStreamPresence(p0: StreamPresenceEvent?) {}
+
+            override fun onDisconnect(p0: Throwable?) {
+                appendLogs("onDisconnect")
+            }
+
+            override fun onMatchPresence(p0: MatchPresenceEvent?) {}
+
+            override fun onError(p0: Error?) {
+                appendLogs("onError ${p0?.message}")
+            }
+
+            override fun onStreamData(p0: StreamData?) {}
+
+            override fun onNotifications(p0: NotificationList?) {
+                appendLogs("onNotifications ${p0?.notificationsList?.size}")
+            }
+
+            override fun onChannelMessage(p0: ChannelMessage?) {
+                appendLogs("onChannelMessage ${p0?.messageId}")
+            }
+
+        }).addListener(Runnable { appendLogs("socket connected") }, Executors.DIRECT_EXECUTOR)
+    }
+
+    fun onDisconnectBtnClick() {
+        socket.disconnect()
+        client.disconnect()
+    }
+
+    fun appendLogs(log: String) {
+        lLogs.postValue(lLogs.value + "\n" + log)
     }
 
     /*
@@ -105,12 +165,6 @@ class MainActivity : AppCompatActivity() {
                     Log.w(TAG, "Error getting documents.", task.exception)
                 }
             }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        socket.disconnect()
-        client.disconnect()
     }
 
     companion object {
