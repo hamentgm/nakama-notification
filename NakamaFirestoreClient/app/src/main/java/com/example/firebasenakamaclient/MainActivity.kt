@@ -28,8 +28,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setup() {
-        btn_connect.setOnClickListener {
-            onConnectBtnClick()
+        connect()
+        btn_notify.setOnClickListener {
+            socket.rpc("getNotification").addListener(Runnable {  }, Executors.DIRECT_EXECUTOR)
         }
         btn_disconnect.setOnClickListener {
             onDisconnectBtnClick()
@@ -37,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         fireStoreAction()
     }
 
-    private fun onConnectBtnClick() {
+    private fun connect() {
 
         client = DefaultClient(
             "defaultkey",
